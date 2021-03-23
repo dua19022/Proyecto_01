@@ -2512,6 +2512,16 @@ PSECT udata_bank0
  DS 1
     decenas:
  DS 1
+    control_selec:
+ DS 1
+    control_sum:
+ DS 1
+    stage:
+ DS 1
+    flag_stage:
+ DS 1
+    selector:
+ DS 1
 
 ;******************************************************************************
 ; Vector Reset
@@ -2535,9 +2545,9 @@ push: ; Mover las variables temporales a w
 
 isr:
     BANKSEL PORTB
-    btfsc ((INTCON) and 07Fh), 0 ; Revisar si hay interrupciones en el puerto b
-    call active ; Se llama a la subrutina de los botones
-    btfsc ((INTCON) and 07Fh), 2 ; Revisar si hay overflow del timer0
+    ;btfsc ((INTCON) and 07Fh), 0 ; Revisar si hay interrupciones en el puerto b
+    call int_ocb ; Se llama a la subrutina de los botones
+    ;btfsc ((INTCON) and 07Fh), 2 ; Revisar si hay overflow del timer0
     call int_tmr
 
 pop: ; Regresar w al status
@@ -2577,12 +2587,12 @@ int_tmr:
 disp_01:
     movf disp_var, w
     movwf PORTC
-    bsf PORTD, 0
+    bsf PORTD, 7
     goto next_disp
 disp_02:
     movf disp_var+1, W
     movwf PORTC
-    bsf PORTD, 1
+    bsf PORTD, 6
     goto next_disp01
 disp_03:
     movf disp_var+2, W
@@ -2749,6 +2759,7 @@ main:
     bcf ((INTCON) and 07Fh), 2
 
 
+
     ; Limpiar los puertos
     BANKSEL PORTA
     clrf PORTA
@@ -2762,8 +2773,13 @@ main:
 ;******************************************************************************
     loop:
 
+    btfsc flag_stage, 0
+    call selstage
+    btfsc flag_stage, 1
+    call up
+    btfsc flag_stage, 2
+    call down
     BANKSEL PORTA
-    call div_nib ; Se llama a la division de los nibbles
     call prep_nib ; Se mandan los nibbles a cada display
     BANKSEL PORTA
     call division ; Se ejecuta la subrutina de la operacion
@@ -2772,35 +2788,26 @@ main:
 ;******************************************************************************
 ; Sub-Rutinas
 ;******************************************************************************
-div_nib: ; Se separan los nibbles para la primera parte
-    movf PORTA, w
-    andlw 00001111B
-    movwf nibble
-    swapf PORTA, w ; Se cambian los ultimos 4 bits por los primeros
-    andlw 00001111B
-    movwf nibble+1
+int_ocb:
+    banksel PORTB
+    btfss PORTB, 2
+    bsf flag_stage, 0
+    btfss PORTB, 0
+    bsf flag_stage, 1
+    btfss PORTB, 1
+    bsf flag_stage, 2
+    bcf ((INTCON) and 07Fh), 0
     return
 
 prep_nib: ; Se mandan los valores que se quieren desplegar en el 7 segmentos
-    movf nibble, w
+    movf selector, w
     call table
     movwf disp_var ; Display 1
 
-    movf nibble+1, w
+    movf decenas, w
     call table
     movwf disp_var+1 ; Display 2
-
-    movf centenas, W
-    call table
-    movwf disp_var+2 ; Display 3
-
-    movf decenas, W
-    call table
-    movwf disp_var+3 ; Display 4
-
-    movf residuos, W
-    call table
-    movwf disp_var+4 ; Display 5
+# 374 "Proyecto.s"
     return
 
 reset0:
@@ -2829,32 +2836,55 @@ clock: ; Se configura el oscilador interno
 division: ; Se crea la subrutina de la separacion de valores
     clrf centenas ; Empieza la parte de las centenas
     movf PORTA, 0 ; Se mueve lo que hay en el contador a w
-    movwf residuos ; Se mueve w a la variable residuos
-    movlw 100 ; Se mueve 100 a w
-    subwf residuos, 0 ; A residuos se le resta 100
-    btfsc STATUS, 0 ; Se verifica si la bandera de status es 0
-    incf centenas ; Se incrementa una variable si la bandera es 1
-    btfsc STATUS, 0 ; Se vuelve a verificar la bandera
-    movwf residuos ; Se mueve lo sobrante a residuos
-    btfsc STATUS, 0 ;
-    goto $-7 ;
+    movwf selector ; Se mueve w a la variable residuos
 
     clrf decenas ; Empieza la parte de las decenas
     movlw 10 ; Se mueve 10 a w
-    subwf residuos, 0 ; Se le resta a residuos 10
+    subwf selector, 0 ; Se le resta a residuos 10
     btfsc STATUS, 0 ; Se verifica la bandera
     incf decenas ; Se incrementa la variable decenas
     btfsc STATUS, 0 ; Se verifica la bandera
-    movwf residuos ; Se usa residuos como unidades ya que es lo que sobra
+    movwf selector ; Se usa residuos como unidades ya que es lo que sobra
     btfsc STATUS, 0 ; Se verifica la bandera
     goto $-7 ;
     btfss STATUS, 0 ;
     return
 
-selection:
-    movf var, w
-    call option01
+selstage:
+    BANKSEL PORTA
+    incf stage
+    bcf STATUS, 2
+    movlw 5
+    subwf stage, w
+    btfss STATUS, 2
+    goto $+3
+    movlw 0
+    movwf stage
+    bcf flag_stage, 0
+    return
 
+up:
+    incf selector
+    bcf STATUS, 2
+    movlw 21
+    subwf selector, w
+    btfss STATUS, 2
+    goto $+3
+    movlw 10
+    movwf selector
+    bcf flag_stage, 1
+    return
+
+down:
+    decf selector
+    bcf STATUS, 2
+    movlw 9
+    subwf selector, w
+    btfss STATUS, 2
+    goto $+3
+    movlw 20
+    movwf selector
+    bcf flag_stage, 1
     return
 
 option01:
