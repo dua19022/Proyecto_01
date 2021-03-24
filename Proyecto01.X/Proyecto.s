@@ -1,7 +1,7 @@
 ;******************************************************************************
-; Laboratorio 05
+; Proyecto_01
 ;*****************************************************************************
-; Archivo:	Lab_05.s
+; Archivo:	Proyecto.s
 ; Dispositivo:	PIC16F887
 ; Autor:	Marco Duarte
 ; Compilador:	pic-as (v2.30), MPLABX V5.45
@@ -109,7 +109,17 @@ pop:			; Regresar w al status
     retfie
     
  ;------------------------Sub rutinas de interrupcion--------------------------
- 
+ int_ocb:
+    banksel PORTB
+    btfss   PORTB, 2
+    bsf	    flag_stage, 0
+    btfss   PORTB, 0
+    bsf	    flag_stage, 1
+    btfss   PORTB, 1
+    bsf	    flag_stage, 2
+    bcf	    RBIF
+    return
+    
 int_tmr:
     call    reset0	; Se limpia el TMR0
     bcf	    PORTD, 0	; Se limpian todos los puertos que van a los transistores
@@ -136,31 +146,62 @@ int_tmr:
  
     ; Se crean varias rutinas internas para activar los displays
 disp_01:
-    movf    disp_var, w
-    movwf   PORTC
-    bsf	    PORTD, 7
-    goto    next_disp
-disp_02:
-    movf    disp_var+1, W
+    movf    disdec, w
     movwf   PORTC
     bsf	    PORTD, 6
-    goto    next_disp01
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return   
+disp_02:
+    movf    decenas, w
+    movwf   PORTC
+    bsf	    PORTD, 7
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return   
 disp_03:
-    movf    disp_var+2, W
+    movf    disdec, w
+    movwf   PORTC
+    bsf	    PORTD, 0
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return
+disp_04:
+    movf    disdec, w
+    movwf   PORTC
+    bsf	    PORTD, 1
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return
+disp_05:
+    movf    disdec, w
+    movwf   PORTC
+    bsf	    PORTD, 2
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return
+disp_06:
+    movf    disdec, w
+    movwf   PORTC
+    bsf	    PORTD, 3
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return
+disp_07:
+    movf    disdec, w
+    movwf   PORTC
+    bsf	    PORTD, 4
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return   
+disp_08:
+    movf    disdec, w
     movwf   PORTC
     bsf	    PORTD, 5
-    goto    next_disp02
-disp_04:
-    movf    disp_var+3, W
-    movwf   PORTC
-    bsf	    PORTD, 6
-    goto    next_disp03
-disp_05:
-    movf    disp_var+4, W
-    movwf   PORTC
-    bsf	    PORTD, 7
-    goto    next_disp04
-
+    bcf	    flags, 0
+    bsf	    flags, 1
+    return   
+    
 next_disp:  ; Se crean XOR para cada display en modo de hacer rotaciones
     MOVLW   00000001B   ; Se empieza con un bit
     XORWF   flags, 1
@@ -178,6 +219,18 @@ next_disp03:
     xorwf   flags, 1
     return
 next_disp04:
+    movlw   00011000B
+    xorwf   flags, 1
+    return
+next_disp05:
+    movlw   00110000B
+    xorwf   flags, 1
+    return
+next_disp06:
+    movlw   01100000B
+    xorwf   flags, 1
+    return
+next_disp07:
     clrf    flags
     return
 
@@ -331,65 +384,19 @@ main:
     btfsc   flag_stage, 2
     call    down
     movfw   stage, w
-    movlw   
-    ;BANKSEL PORTA
-    ;call    prep_nib	; Se mandan los nibbles a cada display
-   ; BANKSEL PORTA
-   ; call    division	; Se ejecuta la subrutina de la operacion
     
     goto    loop
 ;******************************************************************************
 ; Sub-Rutinas 
 ;******************************************************************************
-int_ocb:
-    banksel PORTB
-    btfss   PORTB, 2
-    bsf	    flag_stage, 0
-    btfss   PORTB, 0
-    bsf	    flag_stage, 1
-    btfss   PORTB, 1
-    bsf	    flag_stage, 2
-    bcf	RBIF
-    return
     
-prep_nib:   ; Se mandan los valores que se quieren desplegar en el 7 segmentos
-    movf    selector, w
-    call    table
-    movwf   disp_var	; Display 1
-    
-    movf    decenas, w
-    call    table
-    movwf   disp_var+1	; Display 2
-    /*
-    movf    centenas, W
-    call    table
-    movwf   disp_var+2	; Display 3
-    
-    movf    decenas, W
-    call    table
-    movwf   disp_var+3	; Display 4
-    
-    movf    residuos, W
-    call    table
-    movwf   disp_var+4	; Display 5
-    */
-    return
-
 reset0:
     ;BANKSEL PORTA
     movlw   253	    ; Tiempo de intruccion
     movwf   TMR0
     bcf	    T0IF    ; Volver 0 al bit del overflow
     return
-    
-active:   ; La subrutina para incrementar y decrementar
-    btfss   PORTB, 0	; Se revisa si se apacha el boton 1
-    incf    PORTA	; Se incrmenta
-    btfss   PORTB, 1	; Se revisa si se apacha el boton 2
-    decf    PORTA	; Se decrementa
-    bcf	    RBIF
-    return 
-    
+ 
 clock:		    ; Se configura el oscilador interno
     BANKSEL OSCCON
     bcf	    IRCF2   ; Se selecciona 010
