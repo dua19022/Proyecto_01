@@ -2,9 +2,9 @@
 # 1 "<built-in>" 1
 # 1 "Proyecto.s" 2
 ;******************************************************************************
-; Laboratorio 05
+; Proyecto_01
 ;*****************************************************************************
-; Archivo: Lab_05.s
+; Archivo: Proyecto.s
 ; Dispositivo: PIC16F887
 ; Autor: Marco Duarte
 ; Compilador: pic-as (v2.30), MPLABX V5.45
@@ -2490,31 +2490,15 @@ PSECT udata_shr ;Common memory
  DS 1
     STATUS_TEMP: ; Variable para que guarde status
  DS 1
-    nibble:
- DS 2
-    count:
- DS 1
     disp_var:
- DS 5
-    flags:
- DS 1
+ DS 8
 
 PSECT udata_bank0
     var:
  DS 1
-    Sem01:
- DS 1
-    dis01:
- DS 1
-    residuos:
- DS 1
-    centenas:
+    residuo:
  DS 1
     decenas:
- DS 1
-    control_selec:
- DS 1
-    control_sum:
  DS 1
     stage:
  DS 1
@@ -2522,7 +2506,38 @@ PSECT udata_bank0
  DS 1
     selector:
  DS 1
+    flags:
+ DS 1
+    sem:
+ DS 1
+    control01:
+ DS 1
+    control02:
+ DS 1
+    count01:
+ DS 1
+    timer1:
+ DS 1
+    timer2:
+ DS 1
+    timer3:
+ DS 1
+    control03:
+ DS 1
+    control04:
+        DS 1
+    flagsem:
+ DS 1
+    control05:
+ DS 1
+    control06:
+        DS 1
+    control07:
+ DS 1
+    control08:
+        DS 1
 
+GLOBAL sem
 ;******************************************************************************
 ; Vector Reset
 ;******************************************************************************
@@ -2545,10 +2560,14 @@ push: ; Mover las variables temporales a w
 
 isr:
     BANKSEL PORTB
-    ;btfsc ((INTCON) and 07Fh), 0 ; Revisar si hay interrupciones en el puerto b
-    call int_ocb ; Se llama a la subrutina de los botones
-    ;btfsc ((INTCON) and 07Fh), 2 ; Revisar si hay overflow del timer0
+    btfsc ((INTCON) and 07Fh), 0 ; Revisar si hay interrupciones en el puerto b
+    call active
+
+    btfsc ((INTCON) and 07Fh), 2 ; Revisar si hay overflow del timer0
     call int_tmr
+
+    btfsc ((PIR1) and 07Fh), 0 ; Revisar si hay overflow del timer1
+    call int_tmr1
 
 pop: ; Regresar w al status
     swapf STATUS_TEMP, W
@@ -2558,17 +2577,22 @@ pop: ; Regresar w al status
     retfie
 
  ;------------------------Sub rutinas de interrupcion--------------------------
+ int_tmr1: ; Interruocion timer1
+    BANKSEL TMR1H
+    movlw 0xE1 ; Modifico los registros del timer1
+    movwf TMR1H
+
+    BANKSEL TMR1L
+    movlw 0x7C
+    movwf TMR1L
+
+    incf count01 ; Se incrementa la variable para el timer
+    bcf ((PIR1) and 07Fh), 0
+return
 
 int_tmr:
     call reset0 ; Se limpia el TMR0
-    bcf PORTD, 0 ; Se limpian todos los puertos que van a los transistores
-    bcf PORTD, 1
-    bcf PORTD, 2
-    bcf PORTD, 3
-    bcf PORTD, 4
-    bcf PORTD, 5
-    bcf PORTD, 6
-    bcf PORTD, 7
+    clrf PORTD
 
 ; Lo que se busca hacer aca es revisar que display esta activado he ir al sig.
     btfsc flags, 0 ; Flags es una variable
@@ -2583,32 +2607,56 @@ int_tmr:
     btfsc flags, 3
     goto disp_05
 
+    btfsc flags, 4
+    goto disp_06
+
+    btfsc flags, 5
+    goto disp_07
+
+    btfsc flags, 6
+    goto disp_08
+
     ; Se crean varias rutinas internas para activar los displays
 disp_01:
-    movf disp_var, w
+    movf control03, w
     movwf PORTC
-    bsf PORTD, 7
+    bsf PORTD, 0
     goto next_disp
 disp_02:
-    movf disp_var+1, W
+    movf control04, W
     movwf PORTC
-    bsf PORTD, 6
+    bsf PORTD, 1
     goto next_disp01
 disp_03:
-    movf disp_var+2, W
+    movf control05, W
     movwf PORTC
-    bsf PORTD, 5
+    bsf PORTD, 2
     goto next_disp02
 disp_04:
-    movf disp_var+3, W
+    movf control06, W
     movwf PORTC
-    bsf PORTD, 6
+    bsf PORTD, 3
     goto next_disp03
 disp_05:
-    movf disp_var+4, W
+    movf control07, W
+    movwf PORTC
+    bsf PORTD, 4
+    goto next_disp04
+disp_06:
+    movf control08, W
+    movwf PORTC
+    bsf PORTD, 5
+    goto next_disp05
+disp_07:
+    movf control01, W
+    movwf PORTC
+    bsf PORTD, 6
+    goto next_disp06
+disp_08:
+    movf control02, W
     movwf PORTC
     bsf PORTD, 7
-    goto next_disp04
+    goto next_disp07
 
 next_disp: ; Se crean XOR para cada display en modo de hacer rotaciones
     MOVLW 00000001B ; Se empieza con un bit
@@ -2627,8 +2675,30 @@ next_disp03:
     xorwf flags, 1
     return
 next_disp04:
-    clrf flags
+    movlw 00011000B
+    xorwf flags, 1
     return
+next_disp05:
+    movlw 00110000B
+    xorwf flags, 1
+    return
+next_disp06:
+    movlw 01100000B
+    xorwf flags, 1
+    return
+next_disp07:
+    clrf flags
+return
+
+active: ; La subrutina para incrementar y decrementar
+    btfss PORTB, 0 ; Se revisa si se apacha el boton 1
+    call up
+    btfss PORTB, 1 ; Se revisa si se apacha el boton 2
+    call down ; Se decrementa
+    btfss PORTB, 2
+    call selstage
+    bcf ((INTCON) and 07Fh), 0
+return
 
 
 ;******************************************************************************
@@ -2732,11 +2802,12 @@ main:
     bcf WPUB, 6
     bcf WPUB, 7
 
+
+
     ; Se llama las configuraciones del clock
     call clock ; Llamo a la configurcion del oscilador interno
-    ;call reset0
 
-    ; Interrupciones
+    ;***************Configuracion de interrupciones****************************
     BANKSEl IOCB ; Activar interrupciones
     movlw 00000011B ; Activar las interrupciones en ((PORTB) and 07Fh), 0 y ((PORTB) and 07Fh), 1
     movwf IOCB
@@ -2744,21 +2815,38 @@ main:
     BANKSEL INTCON
     bcf ((INTCON) and 07Fh), 0
 
-      ; Configuracion de Timer0
+        ; Bits de interrupcion
+    bsf ((INTCON) and 07Fh), 7 ; Interrupcion global
+    bsf ((INTCON) and 07Fh), 3 ; Interrupcion puerto b
+    bsf ((INTCON) and 07Fh), 5 ; Interrupcion timer0
+    bcf ((INTCON) and 07Fh), 2
+    ;**************************************************************************
+
+    ;***************Configuracion de Timer0************************************
     BANKSEL OPTION_REG
     BCF ((OPTION_REG) and 07Fh), 5
     BCF ((OPTION_REG) and 07Fh), 3 ;prescaler asignado al timer0
     BSF ((OPTION_REG) and 07Fh), 0 ;prescaler tenga un valor 1:256
     BSF ((OPTION_REG) and 07Fh), 1
     BSF ((OPTION_REG) and 07Fh), 2
+    ;**************************************************************************
 
-    ; Bits de interrupcion
-    bsf ((INTCON) and 07Fh), 7 ; Interrupcion global
-    bsf ((INTCON) and 07Fh), 3 ; Interrupcion puerto b
-    bsf ((INTCON) and 07Fh), 5 ; Interrupcion timer0
-    bcf ((INTCON) and 07Fh), 2
+    ;****************Configuracion de Timer1***********************************
+    BANKSEL T1CON
+    bsf ((T1CON) and 07Fh), 5 ;prescaler 1:8
+    bsf ((T1CON) and 07Fh), 4
+    bcf ((T1CON) and 07Fh), 1 ;internal clock
+    bsf ((T1CON) and 07Fh), 0 ;habilitar timer1
+    ;**************************************************************************
 
+    ;****************Configuracion de Timer2***********************************
+    BANKSEL T2CON
+    movlw 1001110B ;1001 para el postcaler, 1 timer 2 on, 10 precaler 16
+    movwf T2CON
+    ;**************************************************************************
 
+    movlw 10
+    movwf sem
 
     ; Limpiar los puertos
     BANKSEL PORTA
@@ -2773,56 +2861,23 @@ main:
 ;******************************************************************************
     loop:
 
-    btfsc flag_stage, 0
-    call selstage
-    btfsc flag_stage, 1
-    call up
-    btfsc flag_stage, 2
-    call down
-    BANKSEL PORTA
-    call prep_nib ; Se mandan los nibbles a cada display
-    BANKSEL PORTA
-    call division ; Se ejecuta la subrutina de la operacion
+    call division
+
+    call semaforo
+    call division01
+    call division02
+    call division03
 
     goto loop
 ;******************************************************************************
 ; Sub-Rutinas
 ;******************************************************************************
-int_ocb:
-    banksel PORTB
-    btfss PORTB, 2
-    bsf flag_stage, 0
-    btfss PORTB, 0
-    bsf flag_stage, 1
-    btfss PORTB, 1
-    bsf flag_stage, 2
-    bcf ((INTCON) and 07Fh), 0
-    return
-
-prep_nib: ; Se mandan los valores que se quieren desplegar en el 7 segmentos
-    movf selector, w
-    call table
-    movwf disp_var ; Display 1
-
-    movf decenas, w
-    call table
-    movwf disp_var+1 ; Display 2
-# 374 "Proyecto.s"
-    return
 
 reset0:
     ;BANKSEL PORTA
-    movlw 253 ; Tiempo de intruccion
+    movlw 255 ; Tiempo de intruccion
     movwf TMR0
     bcf ((INTCON) and 07Fh), 2 ; Volver 0 al bit del overflow
-    return
-
-active: ; La subrutina para incrementar y decrementar
-    btfss PORTB, 0 ; Se revisa si se apacha el boton 1
-    incf PORTA ; Se incrmenta
-    btfss PORTB, 1 ; Se revisa si se apacha el boton 2
-    decf PORTA ; Se decrementa
-    bcf ((INTCON) and 07Fh), 0
     return
 
 clock: ; Se configura el oscilador interno
@@ -2834,20 +2889,87 @@ clock: ; Se configura el oscilador interno
     return
 
 division: ; Se crea la subrutina de la separacion de valores
-    clrf centenas ; Empieza la parte de las centenas
-    movf PORTA, 0 ; Se mueve lo que hay en el contador a w
-    movwf selector ; Se mueve w a la variable residuos
-
-    clrf decenas ; Empieza la parte de las decenas
+    clrf selector
+    clrf residuo
+    bcf STATUS, 0
+    movf sem, 0 ; Se mueve lo que hay en el contador a w
+    movwf selector ; Se mueve w a la variable residuos ; Empieza la parte de las decenas
     movlw 10 ; Se mueve 10 a w
-    subwf selector, 0 ; Se le resta a residuos 10
+    incf residuo
+    subwf selector, f ; Se le resta a residuos 10
     btfsc STATUS, 0 ; Se verifica la bandera
-    incf decenas ; Se incrementa la variable decenas
+    goto $-3
+    decf residuo ; Se incrementa la variable decenas
+    addwf selector
+    movf residuo, w
+    call table
+    movwf control01
+    movf selector, w
+    call table
+    movwf control02
+    return
+
+division01: ; Se crea la subrutina de la separacion de valores
+    clrf selector
+    clrf residuo
+    bcf STATUS, 0
+    movf timer1, w ; Se mueve lo que hay en el contador a w
+    movwf selector ; Se mueve w a la variable residuos ; Empieza la parte de las decenas
+    movlw 10 ; Se mueve 10 a w
+    incf residuo
+    subwf selector, f ; Se le resta a residuos 10
     btfsc STATUS, 0 ; Se verifica la bandera
-    movwf selector ; Se usa residuos como unidades ya que es lo que sobra
+    goto $-3
+    decf residuo ; Se incrementa la variable decenas
+    addwf selector
+    movf residuo, w
+    call table
+    movwf control03
+    movf selector, w
+    call table
+    movwf control04
+    return
+
+division02: ; Se crea la subrutina de la separacion de valores
+    clrf selector
+    clrf residuo
+    bcf STATUS, 0
+    movf timer2, w ; Se mueve lo que hay en el contador a w
+    movwf selector ; Se mueve w a la variable residuos ; Empieza la parte de las decenas
+    movlw 10 ; Se mueve 10 a w
+    incf residuo
+    subwf selector, f ; Se le resta a residuos 10
     btfsc STATUS, 0 ; Se verifica la bandera
-    goto $-7 ;
-    btfss STATUS, 0 ;
+    goto $-3
+    decf residuo ; Se incrementa la variable decenas
+    addwf selector
+    movf residuo, w
+    call table
+    movwf control05
+    movf selector, w
+    call table
+    movwf control06
+    return
+
+division03: ; Se crea la subrutina de la separacion de valores
+    clrf selector
+    clrf residuo
+    bcf STATUS, 0
+    movf timer3, w ; Se mueve lo que hay en el contador a w
+    movwf selector ; Se mueve w a la variable residuos ; Empieza la parte de las decenas
+    movlw 10 ; Se mueve 10 a w
+    incf residuo
+    subwf selector, f ; Se le resta a residuos 10
+    btfsc STATUS, 0 ; Se verifica la bandera
+    goto $-3
+    decf residuo ; Se incrementa la variable decenas
+    addwf selector
+    movf residuo, w
+    call table
+    movwf control07
+    movf selector, w
+    call table
+    movwf control08
     return
 
 selstage:
@@ -2864,47 +2986,79 @@ selstage:
     return
 
 up:
-    incf selector
+    incf sem
     bcf STATUS, 2
     movlw 21
-    subwf selector, w
+    subwf sem, w
     btfss STATUS, 2
     goto $+3
     movlw 10
-    movwf selector
+    movwf sem
     bcf flag_stage, 1
     return
 
 down:
-    decf selector
+    decf sem
     bcf STATUS, 2
     movlw 9
-    subwf selector, w
+    subwf sem, w
     btfss STATUS, 2
     goto $+3
     movlw 20
-    movwf selector
+    movwf sem
     bcf flag_stage, 1
     return
 
-option01:
-    btfss ((INTCON) and 07Fh), 2 ; Sumar cuando llegue al overflow el timer0
-    goto $-1
-    call reset0 ; Regresa el overflow a 0
-    ;incf cont01
-    ;movf cont01, w
-    ;subwf charge, w
-    ;movf Sem01, w
-    ;call table
-   ; movwf dis01
-   return
+semaforo:
 
-option02:
+    btfsc flagsem, 0 ; Flags es una variable
+    goto sem02
 
+    btfsc flagsem, 1
+    goto sem03
+
+    btfsc flagsem, 2
+    goto clear
+
+  sem01:
+    bcf STATUS, 2
+    movlw 5
+    movwf timer1
+    movf count01, w
+    subwf timer1, 1
+    btfss STATUS, 2
+    goto $+2
+    bsf flagsem, 0
     return
 
-option03:
+  sem02:
+    bcf STATUS, 2
+    movlw 10
+    movwf timer2
+    movf count01, w
+    subwf timer2, 1
+    btfss STATUS, 2
+    goto $+3
+    bcf flagsem, 0
+    bsf flagsem, 1
+    return
 
+  sem03:
+    bcf STATUS, 2
+    movlw 15
+    movwf timer3
+    movf count01, w
+    subwf timer3, 1
+    btfss STATUS, 2
+    goto $+2
+    bcf flagsem, 1
+    bsf flagsem, 2
+    return
+
+  clear:
+    movlw 0
+    movlw count01
+    bcf ((PIR1) and 07Fh), 0
     return
 
     END
