@@ -2494,15 +2494,9 @@ PSECT udata_shr ;Common memory
  DS 8
 
 PSECT udata_bank0
-    var:
- DS 1
     residuo:
  DS 1
-    decenas:
- DS 1
     stage:
- DS 1
-    flag_stage:
  DS 1
     selector:
  DS 1
@@ -2535,6 +2529,10 @@ PSECT udata_bank0
     control07:
  DS 1
     control08:
+        DS 1
+    flagst:
+        DS 1
+    countsel:
         DS 1
 
 GLOBAL sem
@@ -2697,6 +2695,7 @@ active: ; La subrutina para incrementar y decrementar
     call down ; Se decrementa
     btfss PORTB, 2
     call selstage
+; call activate
     bcf ((INTCON) and 07Fh), 0
 return
 
@@ -2750,15 +2749,18 @@ main:
     bcf TRISA, 3 ; R3 lo defino como output
     bcf TRISA, 4 ; R4 lo defino como output
     bcf TRISA, 5 ; R5 lo defino como output
+    bcf TRISA, 6 ; R5 lo defino como output
+    bcf TRISA, 7 ; R5 lo defino como output
 
     ; Configurar puertos de salida B
     BANKSEL TRISB ; Se selecciona bank 1
     bsf TRISB, 0 ; R0 lo defino como input
     bsf TRISB, 1 ; R1 lo defino como input
-    bsf TRISB, 2 ; R1 lo defino como input
-    bcf TRISB, 5 ; R0 lo defino como onput
-    bcf TRISB, 6 ; R0 lo defino como onput
-    bcf TRISB, 7 ; R1 lo defino como onput
+    bsf TRISB, 2 ; R2 lo defino como input
+    bsf TRISB, 4 ; R2 lo defino como input
+    bcf TRISB, 5 ; R5 lo defino como onput
+    bcf TRISB, 6 ; R6 lo defino como onput
+    bcf TRISB, 7 ; R7 lo defino como onput
 
     ; Configurar puertos de salida C
     BANKSEL TRISC ; Se selecciona bank 1
@@ -2782,12 +2784,7 @@ main:
     bcf TRISD, 6 ; R6 lo defino como output
     bcf TRISD, 7 ; R7 lo defino como output
 
-     ; Configurar puertos de salida E
-    BANKSEL TRISE ; Se selecciona el bank 1
-    bcf TRISE, 0 ; R0 lo defino como output
-    bcf TRISE, 1 ; R1 lo defino como output
-    bcf TRISE, 2 ; R1 lo defino como output
-
+    ;***************Configuracion de Pull-up interno***************************
     ; Poner puerto b en pull-up
     BANKSEL OPTION_REG
     bcf OPTION_REG, 7
@@ -2801,15 +2798,14 @@ main:
     bcf WPUB, 5
     bcf WPUB, 6
     bcf WPUB, 7
-
-
+    ;**************************************************************************
 
     ; Se llama las configuraciones del clock
     call clock ; Llamo a la configurcion del oscilador interno
 
     ;***************Configuracion de interrupciones****************************
     BANKSEl IOCB ; Activar interrupciones
-    movlw 00000011B ; Activar las interrupciones en ((PORTB) and 07Fh), 0 y ((PORTB) and 07Fh), 1
+    movlw 00000111B ; Activar las interrupciones en ((PORTB) and 07Fh), 0 y ((PORTB) and 07Fh), 1
     movwf IOCB
 
     BANKSEL INTCON
@@ -2845,8 +2841,16 @@ main:
     movwf T2CON
     ;**************************************************************************
 
+    ;****************Confiuracion default**************************************
+    ; Se define la variable inicial del contador de seleccion
     movlw 10
     movwf sem
+
+    ; Se inicializan todos los semaforos en rojo
+; bsf PORTA, 0
+; bsf PORTA, 3
+; bsf PORTA, 6
+    ;**************************************************************************
 
     ; Limpiar los puertos
     BANKSEL PORTA
@@ -2860,6 +2864,13 @@ main:
 ; Loop Principal
 ;******************************************************************************
     loop:
+
+; btfsc PORTB, 2
+; call activate
+    BANKSEL PORTA
+    bsf PORTA, 0
+    bsf PORTA, 3
+    bsf PORTA, 6
 
     call division
 
@@ -2973,16 +2984,68 @@ division03: ; Se crea la subrutina de la separacion de valores
     return
 
 selstage:
-    BANKSEL PORTA
+    ;BANKSEL PORTA
     incf stage
+
+    btfsc flagst, 0 ; Flags es una variable
+    goto option01
+
+    btfsc flagst, 1
+    goto option02
+
+    btfsc flagst, 2
+    goto option03
+
+option0:
     bcf STATUS, 2
-    movlw 5
-    subwf stage, w
+    movlw 1
+    movwf countsel
+    movf stage, w
+    subwf countsel, w
     btfss STATUS, 2
     goto $+3
-    movlw 0
-    movwf stage
-    bcf flag_stage, 0
+    bsf PORTB, 5
+    bsf flagst, 0
+    return
+option01:
+    bcf STATUS, 2
+    movlw 2
+    movwf countsel
+    movf stage, w
+    subwf countsel, w
+    btfss STATUS, 2
+    goto $+5
+    bcf PORTB, 5
+    bsf PORTB, 6
+    bcf flagst, 0
+    bsf flagst, 1
+    return
+option02:
+    bcf STATUS, 2
+    movlw 3
+    movwf countsel
+    movf stage, w
+    subwf countsel, w
+    btfss STATUS, 2
+    goto $+5
+    bsf PORTB, 5
+    bsf PORTB, 6
+    bcf flagst, 1
+    bsf flagst, 2
+    return
+option03:
+    bcf STATUS, 2
+    movlw 4
+    movwf countsel
+    movf stage, w
+    subwf countsel, w
+    btfss STATUS, 2
+    goto $+6
+    bcf PORTB, 5
+    bcf PORTB, 6
+    bsf PORTB, 7
+    bcf flagst, 2
+    bsf flagst, 3
     return
 
 up:
@@ -2994,7 +3057,6 @@ up:
     goto $+3
     movlw 10
     movwf sem
-    bcf flag_stage, 1
     return
 
 down:
@@ -3006,7 +3068,6 @@ down:
     goto $+3
     movlw 20
     movwf sem
-    bcf flag_stage, 1
     return
 
 semaforo:
@@ -3056,9 +3117,43 @@ semaforo:
     return
 
   clear:
-    movlw 0
-    movlw count01
+    clrf count01
+    clrf flagsem
     bcf ((PIR1) and 07Fh), 0
+    return
+
+activate:
+    bsf PORTB, 5
+    bsf PORTB, 6
+    bsf PORTB, 7
+    return
+
+semaforos:
+   btfsc flagsem, 0 ; Flags es una variable
+    goto sema02
+
+    btfsc flagsem, 1
+    goto sema03
+
+    btfsc flagsem, 2
+    goto clear
+  sema01:
+    bcf STATUS, 2
+    movlw 5
+    movwf timer1
+    movf count01, w
+    subwf timer1, 1
+    btfss STATUS, 2
+    goto $+2
+    bsf flagsem, 0
+    return
+
+  sema02:
+
+    return
+
+  sema03:
+
     return
 
     END
