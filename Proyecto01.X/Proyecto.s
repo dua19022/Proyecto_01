@@ -34,7 +34,7 @@ PROCESSOR 16F887
 ;******************************************************************************
 ; Variables
 ;******************************************************************************
-      ; Se definen variables , pero por el momento no las estoy usando
+      ; Se definen variables 
 PSECT udata_shr ;Common memory
     
     W_TEMP:	    ; Variable para que se guarde w
@@ -84,9 +84,27 @@ PSECT udata_bank0
     flagst:
         DS 1
     countsel:
-        DS 1	
+        DS 1
+    preptim01:
+        DS 1
+    preptim02:
+        DS 1
+    preptim03:
+        DS 1
+    tiempo01:
+        DS 1
+    tiempo02:
+        DS 1
+    tiempo03:
+        DS 1
+    dispsele:
+	DS 1
 
 GLOBAL sem
+GLOBAL count01
+GLOBAL timer1
+GLOBAL timer2
+GLOBAL timer3
 ;******************************************************************************
 ; Vector Reset
 ;******************************************************************************
@@ -243,10 +261,9 @@ active:   ; La subrutina para incrementar y decrementar
     btfss   PORTB, 0	; Se revisa si se apacha el boton 1
     call    up
     btfss   PORTB, 1	; Se revisa si se apacha el boton 2
-    call    down	; Se decrementa
+    call    down	; Se decrementa1
     btfss   PORTB, 2
     call    selstage
-;    call    activate
     bcf	    RBIF
 return 
 
@@ -396,6 +413,12 @@ main:
     ; Se define la variable inicial del contador de seleccion
     movlw   10
     movwf   sem
+    movlw   5
+    movwf   tiempo01
+    movlw   5
+    movwf   tiempo02
+    movlw   5
+    movwf   tiempo03
     
     ; Se inicializan todos los semaforos en rojo
 ;    bsf	    PORTA, 0
@@ -416,16 +439,17 @@ main:
 ;******************************************************************************
     loop:
     
-;    btfsc   PORTB, 2
-;    call    activate
     BANKSEL PORTA
     bsf	    PORTA, 0
     bsf	    PORTA, 3
     bsf	    PORTA, 6
     
-    call    division
+    btfsc   dispsele, 0
+    call    division 
+    btfsc   dispsele, 1
+    call    aceptar
     
-    call    semaforo
+    call    timers
     call    division01
     call    division02
     call    division03
@@ -534,11 +558,20 @@ division03:   ; Se crea la subrutina de la separacion de valores
     movwf	control08    
     return
     
+aceptar:
+    movlw	10
+    call	table
+    movwf	control01
+    movlw	12
+    call	table
+    movwf	control02
+    return
+    
 selstage:
     ;BANKSEL PORTA
     incf    stage
     
-    btfsc   flagst, 0	; Flags es una variable 
+    btfsc   flagst, 0	; flagst es una variable 
     goto    option01
     
     btfsc   flagst, 1
@@ -546,8 +579,14 @@ selstage:
     
     btfsc   flagst, 2
     goto    option03
+    
+    btfsc   flagst, 3
+    goto    back
+    
+    
        
 option0:
+;    call    division    
     bcf	    STATUS, 2
     movlw   1
     movwf   countsel
@@ -557,8 +596,12 @@ option0:
     goto    $+3
     bsf	    PORTB, 5
     bsf	    flagst, 0
+    bsf	    dispsele, 0
     return
 option01:
+;    call    division
+;    movf    sem, w
+;    movwf   preptim01
     bcf	    STATUS, 2
     movlw   2
     movwf   countsel
@@ -572,6 +615,9 @@ option01:
     bsf	    flagst, 1
     return
 option02:
+;    call    division
+;    movf    sem, w
+;    movwf   preptim02
     bcf	    STATUS, 2
     movlw   3
     movwf   countsel
@@ -585,6 +631,9 @@ option02:
     bsf	    flagst, 2
     return
 option03:
+    
+;    movf    sem, w
+;    movwf   preptim03
     bcf	    STATUS, 2
     movlw   4
     movwf   countsel
@@ -597,6 +646,18 @@ option03:
     bsf	    PORTB, 7
     bcf	    flagst, 2
     bsf	    flagst, 3
+    bcf	    dispsele, 0
+    bsf	    dispsele, 1
+;    btfsc   PORTB, 0
+;    call    configuracion
+    return
+back:
+    clrf    control01
+    clrf    control02
+    bcf	    PORTB, 7
+    clrf    flagst
+    clrf    stage
+    clrf    dispsele
     return
     
 up:
@@ -621,7 +682,7 @@ down:
     movwf   sem
     return      
     
-semaforo:
+timers:
     
     btfsc   flagsem, 0	; Flags es una variable 
     goto    sem02
@@ -634,7 +695,7 @@ semaforo:
     
   sem01:
     bcf	    STATUS, 2
-    movlw   5
+    movf    tiempo01, w
     movwf   timer1
     movf    count01, w
     subwf   timer1, 1
@@ -642,10 +703,10 @@ semaforo:
     goto    $+2
     bsf	    flagsem, 0
     return
-    
-  sem02:   
+  sem02: 
     bcf	    STATUS, 2
-    movlw   10
+    movf    tiempo02, w
+    addwf   tiempo01, w
     movwf   timer2
     movf    count01, w
     subwf   timer2, 1
@@ -654,10 +715,11 @@ semaforo:
     bcf	    flagsem, 0
     bsf	    flagsem, 1
     return
-   
   sem03:
     bcf	    STATUS, 2
-    movlw   15
+    movf    tiempo03, w
+    addwf   tiempo01, w
+    addwf   tiempo02, w
     movwf   timer3
     movf    count01, w
     subwf   timer3, 1
@@ -666,7 +728,6 @@ semaforo:
     bcf	    flagsem, 1
     bsf	    flagsem, 2
     return
-    
   clear:
     clrf    count01
     clrf    flagsem
@@ -687,24 +748,29 @@ semaforos:
     goto    sema03
     
     btfsc   flagsem, 2
-    goto    clear 
-  sema01:
-    bcf	    STATUS, 2
-    movlw   5
-    movwf   timer1
-    movf    count01, w
-    subwf   timer1, 1
-    btfss   STATUS, 2
-    goto    $+2
-    bsf	    flagsem, 0
-    return
+    goto    reseteo 
     
+  sema01:
+
+    return
   sema02:   
 
     return
-   
   sema03:
  
-    return   
+    return 
+  reseteo:
+    
+    return
+    
+configuracion:
+    movf    preptim01, w
+    movlw   tiempo01
+    movf    preptim02, w
+    movlw   tiempo02
+    movf    preptim03, w
+    movlw   tiempo03
+    return
+    
     
     END
