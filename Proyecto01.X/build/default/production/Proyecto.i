@@ -2548,6 +2548,12 @@ PSECT udata_bank0
         DS 1
     dispsele:
  DS 1
+    verdec:
+ DS 1
+    verdet:
+ DS 1
+    amarillo:
+ DS 1
 
 GLOBAL sem
 GLOBAL count01
@@ -2862,11 +2868,11 @@ main:
     ; Se define la variable inicial del contador de seleccion
     movlw 10
     movwf sem
-    movlw 5
+    movlw 10
     movwf tiempo01
-    movlw 5
+    movlw 10
     movwf tiempo02
-    movlw 5
+    movlw 10
     movwf tiempo03
 
     ; Se inicializan todos los semaforos en rojo
@@ -2888,15 +2894,17 @@ main:
 ;******************************************************************************
     loop:
 
-    BANKSEL PORTA
-    bsf PORTA, 0
-    bsf PORTA, 3
-    bsf PORTA, 6
+; BANKSEL PORTA
+; bsf PORTA, 0
+; bsf PORTA, 3
+; bsf PORTA, 6
 
     btfsc dispsele, 0
     call division
     btfsc dispsele, 1
     call aceptar
+
+    call semaforos
 
     call timers
     call division01
@@ -3035,7 +3043,6 @@ selstage:
 
 
 option0:
-; call division
     bcf STATUS, 2
     movlw 1
     movwf countsel
@@ -3048,9 +3055,6 @@ option0:
     bsf dispsele, 0
     return
 option01:
-; call division
-; movf sem, w
-; movwf preptim01
     bcf STATUS, 2
     movlw 2
     movwf countsel
@@ -3064,9 +3068,6 @@ option01:
     bsf flagst, 1
     return
 option02:
-; call division
-; movf sem, w
-; movwf preptim02
     bcf STATUS, 2
     movlw 3
     movwf countsel
@@ -3080,9 +3081,6 @@ option02:
     bsf flagst, 2
     return
 option03:
-
-; movf sem, w
-; movwf preptim03
     bcf STATUS, 2
     movlw 4
     movwf countsel
@@ -3200,7 +3198,34 @@ semaforos:
     goto reseteo
 
   sema01:
-
+    bcf STATUS, 2
+    bsf PORTA, 0
+    bsf PORTA, 6
+    bsf PORTA, 2
+    movf tiempo01, w
+    movwf verdec
+    movlw 6
+    subwf verdec, 1
+    movf count01, w
+    subwf verdec, 1
+    btfss STATUS, 2
+    goto $+2
+    bcf PORTA, 2
+    movlw 6
+    movwf verdet
+    movf count01, w
+    subwf verdec, 1
+    btfss STATUS, 2
+    goto $+2
+    bcf PORTA, 1
+    movlw 9
+    movwf amarillo
+    movf count01, w
+    subwf verdec, 1
+    btfss STATUS, 2
+    goto $+2
+    bcf PORTA, 1
+    bsf PORTA, 0
     return
   sema02:
 
