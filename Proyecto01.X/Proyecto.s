@@ -30,87 +30,114 @@ PROCESSOR 16F887
   CONFIG  BOR4V =   BOR40V        ; Brown-out Reset Selection bit (Brown-out Reset set to 4.0V)
   CONFIG  WRT =	    OFF             ; Flash Program Memory Self Write Enable bits (Write protection off)
 
-
+;******************************************************************************
+; Macros
+;******************************************************************************
+  titileo01 macro
+    bsf	    PORTA, 2
+    call    delay_small
+    bcf	    PORTA, 2
+    call    delay_small
+    bsf	    PORTA, 2
+    endm
+    
+    delay_small macro
+    movlw 248		 ; Valor inicial del contador
+    movwf cont_small	
+    decfsz cont_small, 1 ; Decrmentar el contador
+    goto $-1		 ; Ejecutar linea anterior
+    endm
 ;******************************************************************************
 ; Variables
 ;******************************************************************************
       ; Se definen variables 
+//<editor-fold defaultstate="collapsed" desc="Variables Share Memory">
 PSECT udata_shr ;Common memory
     
-    W_TEMP:	    ; Variable para que se guarde w
+W_TEMP:	    ; Variable para que se guarde w
 	DS 1
-    STATUS_TEMP:    ; Variable para que guarde status
+STATUS_TEMP:    ; Variable para que guarde status
 	DS 1
-    disp_var:
-	DS  8
-    
-PSECT udata_bank0 
-    residuo:
-	DS  1
-    stage:
-	DS  1
-    selector:
-	DS  1
-    flags:
-	DS  1
-    sem:
-	DS 1
-    control01:
-	DS 1
-    control02:
-	DS 1
-    count01:
-	DS 1
-    timer1:
-	DS 1
-    timer2:
-	DS 1
-    timer3:
-	DS 1
-    control03:
-	DS 1
-    control04:
-        DS 1
-    flagsem:
-	DS 1
-    control05:
-	DS 1
-    control06:
-        DS 1
-    control07:
-	DS 1
-    control08:
-        DS 1
-    flagst:
-        DS 1
-    countsel:
-        DS 1
-    preptim01:
-        DS 1
-    preptim02:
-        DS 1
-    preptim03:
-        DS 1
-    tiempo01:
-        DS 1
-    tiempo02:
-        DS 1
-    tiempo03:
-        DS 1
-    dispsele:
-	DS 1
-    verdec:
-	DS 1
-    verdet:
-	DS 1
-    amarillo:
-	DS 1
+disp_var:
+	DS  8//</editor-fold>
 
+//<editor-fold defaultstate="collapsed" desc="Variables Bank0">
+PSECT udata_bank0 
+residuo:
+	DS  1
+stage:
+	DS  1
+selector:
+	DS  1
+flags:
+	DS  1
+sem:
+	DS 1
+control01:
+	DS 1
+control02:
+	DS 1
+count01:
+	DS 1
+timer1:
+	DS 1
+timer2:
+	DS 1
+timer3:
+	DS 1
+control03:
+	DS 1
+control04:
+        DS 1
+flagsem:
+	DS 1
+control05:
+	DS 1
+control06:
+        DS 1
+control07:
+	DS 1
+control08:
+        DS 1
+flagst:
+        DS 1
+countsel:
+        DS 1
+preptim01:
+        DS 1
+preptim02:
+        DS 1
+preptim03:
+        DS 1
+tiempo01:
+        DS 1
+tiempo02:
+        DS 1
+tiempo03:
+        DS 1
+dispsele:
+	DS 1
+verdec:
+	DS 1
+verdet:
+	DS 1
+amarillo:
+	DS 1
+colorflag:
+	DS 1
+resta:
+	DS 1
+flagreset:
+	DS 1
+cont_small:
+	DS 1//</editor-fold>
+	
 GLOBAL sem
 GLOBAL count01
 GLOBAL timer1
 GLOBAL timer2
 GLOBAL timer3
+	
 ;******************************************************************************
 ; Vector Reset
 ;******************************************************************************
@@ -150,7 +177,9 @@ pop:			; Regresar w al status
     retfie
     
  ;------------------------Sub rutinas de interrupcion--------------------------
- int_tmr1:	; Interruocion timer1
+ 
+//<editor-fold defaultstate="collapsed" desc="Interrupcion Timer1">
+int_tmr1:	; Interruocion timer1
     BANKSEL TMR1H   
     movlw   0xE1       ; Modifico los registros del timer1
     movwf   TMR1H
@@ -161,8 +190,9 @@ pop:			; Regresar w al status
     
     incf    count01	; Se incrementa la variable para el timer
     bcf	    TMR1IF
-return  
-    
+    return //</editor-fold>
+   
+//<editor-fold defaultstate="collapsed" desc="Interrupcion de los diplays">
 int_tmr:
     call    reset0	; Se limpia el TMR0
     clrf    PORTD
@@ -261,8 +291,9 @@ next_disp06:
     return
 next_disp07:
     clrf    flags
-return
-    
+    return//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="Rutina para botones">
 active:   ; La subrutina para incrementar y decrementar
     btfss   PORTB, 0	; Se revisa si se apacha el boton 1
     call    up
@@ -271,9 +302,8 @@ active:   ; La subrutina para incrementar y decrementar
     btfss   PORTB, 2
     call    selstage
     bcf	    RBIF
-return 
+    return //</editor-fold>
 
- 
 ;******************************************************************************
 ; Configuracion de tabla
 ;******************************************************************************
@@ -281,6 +311,7 @@ PSECT code, delta=2, abs
 ORG 100h    ;posicion para el codigo
  
 ; Tabla de la traduccion de binario a decimal
+//<editor-fold defaultstate="collapsed" desc="Tabla para traducir">
 table:
     clrf	PCLATH
     bsf		PCLATH, 0
@@ -301,9 +332,8 @@ table:
     RETLW	00111001B   ;C
     RETLW	01011110B   ;D
     RETLW	01111001B   ;E
-    RETLW	01110001B   ;F
-    
-    
+    RETLW	01110001B   ;F//</editor-fold>
+ 
 ;******************************************************************************
 ; Configuracion 
 ;******************************************************************************
@@ -331,7 +361,7 @@ main:
     bsf	    TRISB,  0	; R0 lo defino como input
     bsf	    TRISB,  1	; R1 lo defino como input
     bsf	    TRISB,  2	; R2 lo defino como input
-    bsf	    TRISB,  4	; R2 lo defino como input
+    bcf	    TRISB,  4	; R2 lo defino como input
     bcf	    TRISB,  5	; R5 lo defino como onput
     bcf	    TRISB,  6	; R6 lo defino como onput
     bcf	    TRISB,  7	; R7 lo defino como onput
@@ -419,17 +449,10 @@ main:
     ; Se define la variable inicial del contador de seleccion
     movlw   10
     movwf   sem
-    movlw   10
     movwf   tiempo01
-    movlw   10
     movwf   tiempo02
-    movlw   10
     movwf   tiempo03
     
-    ; Se inicializan todos los semaforos en rojo
-;    bsf	    PORTA, 0
-;    bsf	    PORTA, 3
-;    bsf	    PORTA, 6
     ;**************************************************************************
     
     ; Limpiar los puertos
@@ -439,20 +462,19 @@ main:
     clrf    PORTC
     clrf    PORTD
     clrf    PORTE
-    
+  
 ;******************************************************************************
 ; Loop Principal
 ;******************************************************************************
     loop:
     
-;    BANKSEL PORTA
-;    bsf	    PORTA, 0
-;    bsf	    PORTA, 3
-;    bsf	    PORTA, 6
-    
     btfsc   dispsele, 0
-    call    division 
+    call    division1 
     btfsc   dispsele, 1
+    call    division2 
+    btfsc   dispsele, 2
+    call    division3 
+    btfsc   dispsele, 3
     call    aceptar
     
     call    semaforos
@@ -467,26 +489,30 @@ main:
 ; Sub-Rutinas 
 ;******************************************************************************
     
+//<editor-fold defaultstate="collapsed" desc="Reset Timer0">
 reset0:
     ;BANKSEL PORTA
     movlw   255	    ; Tiempo de intruccion
     movwf   TMR0
     bcf	    T0IF    ; Volver 0 al bit del overflow
-    return
- 
+    return//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="Configuracion Clock">
 clock:		    ; Se configura el oscilador interno
     BANKSEL OSCCON
     bcf	    IRCF2   ; Se selecciona 010
     bsf	    IRCF1   
     bcf	    IRCF0   ; Frecuencia de 250 KHz
     bsf	    SCS	    ; Activar oscilador interno
-    return
-    
-division:   ; Se crea la subrutina de la separacion de valores
+    return//</editor-fold>
+  
+//<editor-fold defaultstate="collapsed" desc="Division01 Selector">
+division1:   ; Se crea la subrutina de la separacion de valores
     clrf	selector
     clrf	residuo
     bcf		STATUS, 0
     movf	sem, 0	    ; Se mueve lo que hay en el contador a w
+    movwf	preptim01
     movwf	selector	    ; Se mueve w a la variable residuos		    ; Empieza la parte de las decenas
     movlw	10		    ; Se mueve 10 a w
     incf	residuo
@@ -501,8 +527,55 @@ division:   ; Se crea la subrutina de la separacion de valores
     movf	selector, w
     call	table
     movwf	control02    
-    return
-    
+    return//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="Division02 Selector">
+division2:   ; Se crea la subrutina de la separacion de valores
+    clrf	selector
+    clrf	residuo
+    bcf		STATUS, 0
+    movf	sem, 0	    ; Se mueve lo que hay en el contador a w
+    movwf	preptim02
+    movwf	selector	    ; Se mueve w a la variable residuos		    ; Empieza la parte de las decenas
+    movlw	10		    ; Se mueve 10 a w
+    incf	residuo
+    subwf	selector, f	    ; Se le resta a residuos 10
+    btfsc	STATUS, 0	    ; Se verifica la bandera
+    goto	$-3
+    decf	residuo		    ; Se incrementa la variable decenas
+    addwf	selector
+    movf	residuo, w
+    call	table
+    movwf	control01
+    movf	selector, w
+    call	table
+    movwf	control02    
+    return//</editor-fold>
+ 
+//<editor-fold defaultstate="collapsed" desc="Division03 Selector">
+division3:   ; Se crea la subrutina de la separacion de valores
+    clrf	selector
+    clrf	residuo
+    bcf		STATUS, 0
+    movf	sem, 0	    ; Se mueve lo que hay en el contador a w
+    movwf	preptim03
+    movwf	selector	    ; Se mueve w a la variable residuos		    ; Empieza la parte de las decenas
+    movlw	10		    ; Se mueve 10 a w
+    incf	residuo
+    subwf	selector, f	    ; Se le resta a residuos 10
+    btfsc	STATUS, 0	    ; Se verifica la bandera
+    goto	$-3
+    decf	residuo		    ; Se incrementa la variable decenas
+    addwf	selector
+    movf	residuo, w
+    call	table
+    movwf	control01
+    movf	selector, w
+    call	table
+    movwf	control02    
+    return//</editor-fold>    
+      
+//<editor-fold defaultstate="collapsed" desc="Division Display timer 1">
 division01:   ; Se crea la subrutina de la separacion de valores
     clrf	selector
     clrf	residuo
@@ -522,8 +595,9 @@ division01:   ; Se crea la subrutina de la separacion de valores
     movf	selector, w
     call	table
     movwf	control04    
-    return
-    
+    return//</editor-fold>
+   
+//<editor-fold defaultstate="collapsed" desc="Division Display timer 2">
 division02:   ; Se crea la subrutina de la separacion de valores
     clrf	selector
     clrf	residuo
@@ -543,8 +617,9 @@ division02:   ; Se crea la subrutina de la separacion de valores
     movf	selector, w
     call	table
     movwf	control06    
-    return
-    
+    return//</editor-fold>
+ 
+//<editor-fold defaultstate="collapsed" desc="Division Display timer 3">
 division03:   ; Se crea la subrutina de la separacion de valores
     clrf	selector
     clrf	residuo
@@ -564,20 +639,35 @@ division03:   ; Se crea la subrutina de la separacion de valores
     movf	selector, w
     call	table
     movwf	control08    
-    return
-    
+    return//</editor-fold>
+ 
+//<editor-fold defaultstate="collapsed" desc="Aceptar en el display">
 aceptar:
+    
     movlw	10
     call	table
     movwf	control01
     movlw	12
     call	table
     movwf	control02
+    
+    btfsc	PORTA, 0
+    call	confirmar
     return
     
+    confirmar:
+    movf    preptim01, w
+    movwf   tiempo01
+    movf    preptim02, w
+    movwf   tiempo02
+    movf    preptim03, w
+    movwf   tiempo03
+    call    supeR
+    return//</editor-fold>
+ 
+//<editor-fold defaultstate="collapsed" desc="Seleccion de estado">
 selstage:
-    ;BANKSEL PORTA
-    incf    stage
+    incf    stage	; 1
     
     btfsc   flagst, 0	; flagst es una variable 
     goto    option01
@@ -590,17 +680,15 @@ selstage:
     
     btfsc   flagst, 3
     goto    back
-    
-    
-       
+           
 option0:  
     bcf	    STATUS, 2
     movlw   1
-    movwf   countsel
-    movf    stage, w
+    movwf   countsel	    
+    movf    stage, w	    
     subwf   countsel, w
-    btfss   STATUS, 2
-    goto    $+3
+    btfss   STATUS, 2	    
+    goto    $+4
     bsf	    PORTB, 5
     bsf	    flagst, 0
     bsf	    dispsele, 0
@@ -612,11 +700,13 @@ option01:
     movf    stage, w
     subwf   countsel, w
     btfss   STATUS, 2
-    goto    $+5
+    goto    $+7
     bcf	    PORTB, 5
     bsf	    PORTB, 6
     bcf	    flagst, 0
     bsf	    flagst, 1
+    bcf	    dispsele, 0
+    bsf	    dispsele, 1
     return
 option02:
     bcf	    STATUS, 2
@@ -625,11 +715,13 @@ option02:
     movf    stage, w
     subwf   countsel, w
     btfss   STATUS, 2
-    goto    $+5
+    goto    $+7
     bsf	    PORTB, 5
     bsf	    PORTB, 6
     bcf	    flagst, 1
     bsf	    flagst, 2
+    bcf	    dispsele, 1
+    bsf	    dispsele, 2
     return
 option03:
     bcf	    STATUS, 2
@@ -644,10 +736,8 @@ option03:
     bsf	    PORTB, 7
     bcf	    flagst, 2
     bsf	    flagst, 3
-    bcf	    dispsele, 0
-    bsf	    dispsele, 1
-;    btfsc   PORTB, 0
-;    call    configuracion
+    bcf	    dispsele, 2
+    bsf	    dispsele, 3
     return
 back:
     clrf    control01
@@ -656,8 +746,9 @@ back:
     clrf    flagst
     clrf    stage
     clrf    dispsele
-    return
-    
+    return//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="Incremento Seleccion">
 up:
     incf    sem
     bcf     STATUS, 2
@@ -667,8 +758,9 @@ up:
     goto    $+3
     movlw   10
     movwf   sem 
-    return
-    
+    return//</editor-fold>
+
+//<editor-fold defaultstate="collapsed" desc="Decremento Seleccion">
 down:
     decf    sem
     bcf	    STATUS, 2
@@ -678,11 +770,12 @@ down:
     goto    $+3
     movlw   20
     movwf   sem
-    return      
-    
+    return  //</editor-fold>
+      
+//<editor-fold defaultstate="collapsed" desc="Configuracion de los tiempos">
 timers:
     
-    btfsc   flagsem, 0	; Flags es una variable 
+    btfsc   flagsem, 0	; flagsem es una variable 
     goto    sem02
     
     btfsc   flagsem, 1
@@ -691,111 +784,236 @@ timers:
     btfsc   flagsem, 2
     goto    clear
     
-  sem01:
+sem01:
     bcf	    STATUS, 2
     movf    tiempo01, w
     movwf   timer1
     movf    count01, w
     subwf   timer1, 1
     btfss   STATUS, 2
-    goto    $+2
+    goto    $+4
     bsf	    flagsem, 0
+    movlw   0
+    movwf   count01
     return
-  sem02: 
+sem02: 
     bcf	    STATUS, 2
     movf    tiempo02, w
-    addwf   tiempo01, w
     movwf   timer2
     movf    count01, w
     subwf   timer2, 1
     btfss   STATUS, 2
-    goto    $+3
+    goto    $+5
     bcf	    flagsem, 0
     bsf	    flagsem, 1
+    movlw   0
+    movwf   count01
     return
-  sem03:
+sem03:
     bcf	    STATUS, 2
     movf    tiempo03, w
-    addwf   tiempo01, w
-    addwf   tiempo02, w
     movwf   timer3
     movf    count01, w
     subwf   timer3, 1
     btfss   STATUS, 2
-    goto    $+2
+    goto    $+3
     bcf	    flagsem, 1
     bsf	    flagsem, 2
     return
-  clear:
+clear:
     clrf    count01
     clrf    flagsem
     bcf	    TMR1IF
-    return
+    return//</editor-fold>
     
-activate:
-    bsf	    PORTB, 5
-    bsf	    PORTB, 6
-    bsf	    PORTB, 7
-    return
-    
+//<editor-fold defaultstate="collapsed" desc="Configuracion Semaforos">
 semaforos:
-   btfsc   flagsem, 0	; Flags es una variable 
+    
+    btfsc   colorflag, 0
     goto    sema02
     
-    btfsc   flagsem, 1
+    btfsc   colorflag, 1
     goto    sema03
     
-    btfsc   flagsem, 2
-    goto    reseteo 
+    btfsc   colorflag, 2
+    goto    sema04 
+
+    btfsc   colorflag, 3
+    goto    sema05
     
-  sema01:
+    btfsc   colorflag, 4
+    goto    sema06
+    
+    btfsc   colorflag, 5
+    goto    sema07 
+    
+    btfsc   colorflag, 6
+    goto    sema08 
+    
+    btfsc   colorflag, 7
+    goto    sema09 
+    
+    btfsc   flagreset, 0
+    goto    reseteo
+    
+sema01:
     bcf	    STATUS, 2
-    bsf	    PORTA, 0
+    bcf	    PORTA, 0
+    bsf	    PORTA, 3
     bsf	    PORTA, 6
     bsf	    PORTA, 2
     movf    tiempo01, w
     movwf   verdec
     movlw   6
     subwf   verdec, 1
+    movf    verdec, w
+    movwf   resta
     movf    count01, w
     subwf   verdec, 1
     btfss   STATUS, 2
-    goto    $+2
+    goto    $+3
     bcf	    PORTA, 2
-    movlw   6
+    bsf	    colorflag, 0
+    return
+sema02:  
+    bsf	    PORTA, 2
+    delay_small
+    bcf	    PORTA, 2
+    movlw   3
+    addwf   resta, w
     movwf   verdet
     movf    count01, w
-    subwf   verdec, 1
+    subwf   verdet, 1
     btfss   STATUS, 2
-    goto    $+2
-    bcf	    PORTA, 1
-    movlw   9
+    goto    $+3
+    bcf	    colorflag, 0
+    bsf	    colorflag, 1
+    return
+sema03:
+    bsf	    PORTA, 1
+    movlw   6
+    addwf   resta, w
     movwf   amarillo
+    movf    count01, w
+    subwf   amarillo, 1
+    btfss   STATUS, 2
+    goto    $+4
+    bcf	    colorflag, 1
+    bsf	    colorflag, 2
+    bcf	    PORTA, 1
+    return
+sema04:
+    bcf	    STATUS, 2
+    bcf	    PORTA, 3
+    bsf	    PORTA, 0
+    bsf	    PORTA, 5
+    movf    tiempo02, w
+    movwf   verdec 
+    movlw   6
+    subwf   verdec, 1
+    movf    verdec, w
+    movwf   resta
     movf    count01, w
     subwf   verdec, 1
     btfss   STATUS, 2
-    goto    $+2
-    bcf	    PORTA, 1
-    bsf	    PORTA, 0
+    goto    $+4
+    bcf	    PORTA, 5
+    bcf	    colorflag, 2
+    bsf	    colorflag, 3    
     return
-  sema02:   
+sema05:
+    bsf	    PORTA, 5
+    delay_small
+    bcf	    PORTA, 5
+    movlw   3
+    addwf   resta, w
+    movwf   verdet
+    movf    count01, w
+    subwf   verdet, 1
+    btfss   STATUS, 2
+    goto    $+3
+    bcf	    colorflag, 3
+    bsf	    colorflag, 4
+    return
+sema06:
+    bsf	    PORTA, 4
+    movlw   6
+    addwf   resta, w
+    movwf   amarillo
+    movf    count01, w
+    subwf   amarillo, 1
+    btfss   STATUS, 2
+    goto    $+4
+    bcf	    colorflag, 4
+    bsf	    colorflag, 5
+    bcf	    PORTA, 4
+    return
+sema07:
+    bcf	    STATUS, 2
+    bcf	    PORTA, 6
+    bsf	    PORTA, 3
+    bsf	    PORTB, 4
+    movf    tiempo02, w
+    movwf   verdec 
+    movlw   6
+    subwf   verdec, 1
+    movf    verdec, w
+    movwf   resta
+    movf    count01, w
+    subwf   verdec, 1
+    btfss   STATUS, 2
+    goto    $+4
+    bcf	    PORTB, 4
+    bcf	    colorflag, 5
+    bsf	    colorflag, 6    
+    return    
+sema08:
+    bsf	    PORTB, 4
+    delay_small
+    bcf	    PORTB, 4
+    movlw   3
+    addwf   resta, w
+    movwf   verdet
+    movf    count01, w
+    subwf   verdet, 1
+    btfss   STATUS, 2
+    goto    $+3
+    bcf	    colorflag, 6
+    bsf	    colorflag, 7
+    return   
+sema09:
+    bsf	    PORTA, 7
+    movlw   6
+    addwf   resta, w
+    movwf   amarillo
+    movf    count01, w
+    subwf   amarillo, 1
+    btfss   STATUS, 2
+    goto    $+5
+    bcf	    colorflag, 7
+    bsf	    flagreset, 0
+    bcf	    PORTA, 7
+    bsf	    PORTA, 6
+    return
+reseteo:
+    clrf    resta
+    clrf    colorflag
+    bcf     flagreset, 0
+    return//</editor-fold>
+    
+//<editor-fold defaultstate="collapsed" desc="Delay para titileo">
+delay_small:
+    movlw 248		 ; Valor inicial del contador
+    movwf cont_small	
+    decfsz cont_small, 1 ; Decrmentar el contador
+    goto $-1		 ; Ejecutar linea anterior
+    return//</editor-fold>
 
-    return
-  sema03:
- 
-    return 
-  reseteo:
-    
-    return
-    
-configuracion:
-    movf    preptim01, w
-    movlw   tiempo01
-    movf    preptim02, w
-    movlw   tiempo02
-    movf    preptim03, w
-    movlw   tiempo03
-    return
-    
-    
+ supeR:
+    clrf    flagsem
+    clrf    colorflag
+    clrf    flagst
+    clrf    stage
+    return   
+
     END
