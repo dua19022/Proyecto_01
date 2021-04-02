@@ -656,13 +656,13 @@ aceptar:
     return
     
     confirmar:
+    call    supeR
     movf    preptim01, w
     movwf   tiempo01
     movf    preptim02, w
     movwf   tiempo02
     movf    preptim03, w
     movwf   tiempo03
-    call    supeR
     return//</editor-fold>
  
 //<editor-fold defaultstate="collapsed" desc="Seleccion de estado">
@@ -858,10 +858,16 @@ semaforos:
     
 sema01:
     bcf	    STATUS, 2
-    bcf	    PORTA, 0
-    bsf	    PORTA, 3
-    bsf	    PORTA, 6
-    bsf	    PORTA, 2
+    bcf	    PORTA, 0	; Rojo s1
+    bcf	    PORTA, 1	; Amarillo s1
+    bsf	    PORTA, 2	; Verde s1
+    bsf	    PORTA, 3	; Rojo s2
+    bcf	    PORTA, 4	; Amarillo s2
+    bcf	    PORTA, 5	; Verde s2
+    bsf	    PORTA, 6	; Rojo s3
+    bcf	    PORTA, 7	; Amarillo s3
+    bcf	    PORTB, 4	; Verde s3
+    
     movf    tiempo01, w
     movwf   verdec
     movlw   6
@@ -1014,6 +1020,13 @@ delay_small:
     clrf    colorflag
     clrf    flagst
     clrf    stage
+    call    back
+;    clrf    timer1
+;    clrf    timer2
+;    clrf    timer3
+;    clrf    tiempo01
+;    clrf    tiempo02
+;    clrf    tiempo03
     return   
 
     END
