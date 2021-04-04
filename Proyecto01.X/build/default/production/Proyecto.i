@@ -2580,6 +2580,8 @@ flagreset:
  DS 1
 cont_small:
  DS 1
+reinicio:
+ DS 1
 
 GLOBAL sem
 GLOBAL count01
@@ -3101,17 +3103,7 @@ aceptar:
     movwf control02
 
     btfsc PORTA, 0
-    call confirmar
-    return
-
-    confirmar:
-    call supeR
-    movf preptim01, w
-    movwf tiempo01
-    movf preptim02, w
-    movwf tiempo02
-    movf preptim03, w
-    movwf tiempo03
+    call confirmar0
     return
 
 
@@ -3131,6 +3123,9 @@ selstage:
     goto back
 
 option0:
+    bcf PORTB, 5
+    bcf PORTB, 6
+    bcf PORTB, 7
     bcf STATUS, 2
     movlw 1
     movwf countsel
@@ -3331,6 +3326,7 @@ sema01:
     bsf colorflag, 0
     return
 sema02:
+    bcf STATUS, 2
     bsf PORTA, 2
     delay_small
     bcf PORTA, 2
@@ -3345,6 +3341,7 @@ sema02:
     bsf colorflag, 1
     return
 sema03:
+    bcf STATUS, 2
     bsf PORTA, 1
     movlw 6
     addwf resta, w
@@ -3377,6 +3374,7 @@ sema04:
     bsf colorflag, 3
     return
 sema05:
+    bcf STATUS, 2
     bsf PORTA, 5
     delay_small
     bcf PORTA, 5
@@ -3391,6 +3389,7 @@ sema05:
     bsf colorflag, 4
     return
 sema06:
+    bcf STATUS, 2
     bsf PORTA, 4
     movlw 6
     addwf resta, w
@@ -3410,7 +3409,7 @@ sema07:
     bsf PORTB, 4
     movf tiempo02, w
     movwf verdec
-    movlw 6
+    movlw 5
     subwf verdec, 1
     movf verdec, w
     movwf resta
@@ -3423,6 +3422,7 @@ sema07:
     bsf colorflag, 6
     return
 sema08:
+    bcf STATUS, 2
     bsf PORTB, 4
     delay_small
     bcf PORTB, 4
@@ -3437,6 +3437,7 @@ sema08:
     bsf colorflag, 7
     return
 sema09:
+    bcf STATUS, 2
     bsf PORTA, 7
     movlw 6
     addwf resta, w
@@ -3451,9 +3452,13 @@ sema09:
     bsf PORTA, 6
     return
 reseteo:
+    clrf verdec
+    clrf verdet
+    clrf amarillo
     clrf resta
     clrf colorflag
     bcf flagreset, 0
+    clrf STATUS
     return
 
 
@@ -3465,17 +3470,25 @@ delay_small:
     return
 
  supeR:
+    call back
     clrf flagsem
     clrf colorflag
     clrf flagst
-    clrf stage
-    call back
-; clrf timer1
-; clrf timer2
-; clrf timer3
-; clrf tiempo01
-; clrf tiempo02
-; clrf tiempo03
+    clrf count01
+    clrf dispsele
+    clrf timer1
+    clrf timer2
+    clrf timer3
+    return
+
+confirmar0:
+    call supeR
+    movf preptim01, w
+    movwf tiempo01
+    movf preptim02, w
+    movwf tiempo02
+    movf preptim03, w
+    movwf tiempo03
     return
 
     END
