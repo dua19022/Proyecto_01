@@ -132,7 +132,12 @@ flagreset:
 cont_small:
 	DS 1
 reinicio:
-	DS 1//</editor-fold>
+	DS 1
+fix:
+	DS 1
+accept:
+	DS 1
+	//</editor-fold>
 	
 GLOBAL sem
 GLOBAL count01
@@ -454,6 +459,10 @@ main:
     movwf   tiempo01
     movwf   tiempo02
     movwf   tiempo03
+    movlw   6
+    movwf   fix
+    
+    clrf    reinicio
     
     ;**************************************************************************
     
@@ -481,6 +490,8 @@ main:
     
     call    semaforos
     
+    btfsc   reinicio, 0
+    goto    $+5
     call    timers
     call    division01
     call    division02
@@ -653,8 +664,10 @@ aceptar:
     call	table
     movwf	control02
     
-    btfsc	PORTA, 0
+    btfss	PORTB, 0
     call	confirmar0
+    btfss	PORTB, 1
+    call	back
     return//</editor-fold>
  
 //<editor-fold defaultstate="collapsed" desc="Seleccion de estado">
@@ -960,7 +973,7 @@ sema07:
     bsf	    PORTB, 4
     movf    tiempo02, w
     movwf   verdec 
-    movlw   5
+    movf    fix, w
     subwf   verdec, 1
     movf    verdec, w
     movwf   resta
@@ -1020,7 +1033,8 @@ delay_small:
     goto $-1		 ; Ejecutar linea anterior
     return//</editor-fold>
 
- supeR:
+//<editor-fold defaultstate="collapsed" desc="Reseteo completo">
+supeR:
     call    back
     clrf    flagsem
     clrf    colorflag
@@ -1030,9 +1044,13 @@ delay_small:
     clrf    timer1
     clrf    timer2
     clrf    timer3
-    return   
-    
+    return //</editor-fold>
+  
+//<editor-fold defaultstate="collapsed" desc="Cargar valores en los displays">
 confirmar0:
+    movlw   5
+    movwf   fix
+    bsf	    reinicio, 0
     call    supeR
     movf    preptim01, w
     movwf   tiempo01
@@ -1040,6 +1058,8 @@ confirmar0:
     movwf   tiempo02
     movf    preptim03, w
     movwf   tiempo03
-    return
+    delay_small
+    bcf	    reinicio, 0
+    return//</editor-fold>
 
-    END
+END
