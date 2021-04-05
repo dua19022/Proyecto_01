@@ -202,7 +202,7 @@ int_tmr1:	; Interruocion timer1
 //<editor-fold defaultstate="collapsed" desc="Multiplexado">
 int_tmr:
     call    reset0	; Se limpia el TMR0
-    clrf    PORTD
+    clrf    PORTD	; Se impia el puerto del 7 segmentos
     
 ; Lo que se busca hacer aca es revisar que display esta activado he ir al sig.
     btfsc   flags, 0	; Flags es una variable 
@@ -301,13 +301,13 @@ next_disp07:
     return//</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="Rutina para botones">
-active:   ; La subrutina para incrementar y decrementar
+active:   ; La subrutina para los pushbuttons
     btfss   PORTB, 0	; Se revisa si se apacha el boton 1
     call    up
     btfss   PORTB, 1	; Se revisa si se apacha el boton 2
     call    down	; Se decrementa1
     btfss   PORTB, 2
-    call    selstage
+    call    selstage	; Se va a la rutina de la seleccion de estado
     bcf	    RBIF
     return //</editor-fold>
 
@@ -455,12 +455,12 @@ main:
     ;****************Confiuracion default**************************************
     ; Se define la variable inicial del contador de seleccion
     movlw   10
-    movwf   sem
-    movwf   tiempo01
-    movwf   tiempo02
-    movwf   tiempo03
+    movwf   sem		; La variable que utiliza el display de estado
+    movwf   tiempo01	; Tiempo inicial timer 1
+    movwf   tiempo02	; Tiempo inicial timer 2
+    movwf   tiempo03	; Tiempo inicial timer 3
     movlw   6
-    movwf   fix
+    movwf   fix		; Se usa para corrgir desfase de tiempos
     
     clrf    reinicio
     
@@ -479,21 +479,21 @@ main:
 ;******************************************************************************
     loop:
     
-    btfsc   dispsele, 0
-    call    division1 
-    btfsc   dispsele, 1
+    btfsc   dispsele, 0	; Se revisa la bandra, y rependiendo de cual
+    call    division1	; esta activada se pone una rutina de division
+    btfsc   dispsele, 1 ; Asi se logra poder guardar el valor en una variable
     call    division2 
     btfsc   dispsele, 2
     call    division3 
     btfsc   dispsele, 3
-    call    aceptar
+    call    aceptar	; Rutina de aceptar
     
-    call    semaforos
+    call    semaforos	; Se llama a las leds de los semaforos
     
-    btfsc   reinicio, 0
+    btfsc   reinicio, 0	; Se utiliza para apagar un instante los displays
     goto    $+5
-    call    timers
-    call    division01
+    call    timers	; Configuracion de tiempos
+    call    division01	; Respectivas divisiones
     call    division02
     call    division03
     
@@ -658,22 +658,22 @@ division03:   ; Se crea la subrutina de la separacion de valores
 aceptar:
     
     movlw	10
-    call	table
-    movwf	control01
+    call	table	    ; Se muestra AC en el display para saber 
+    movwf	control01   ; en que modo se encuentran
     movlw	12
     call	table
     movwf	control02
     
-    btfss	PORTB, 0
-    call	confirmar0
-    btfss	PORTB, 1
-    call	back
+    btfss	PORTB, 0    ; Se revisa si se apacha el boton de aceptar
+    call	confirmar0  ; Se llama a la rutina de confirmar
+    btfss	PORTB, 1    ; Se revisa si se apacha el boton de cancelar
+    call	back	    ; Se limpia la rutina de estados
     return//</editor-fold>
  
 //<editor-fold defaultstate="collapsed" desc="Seleccion de estado">
 selstage:
-    incf    stage	; 1
-    
+    incf    stage	; Se incrementa una variable para verificar el estado
+		
     btfsc   flagst, 0	; flagst es una variable 
     goto    option01
     
@@ -685,38 +685,39 @@ selstage:
     
     btfsc   flagst, 3
     goto    back
-           
-option0: 
-    bcf	    PORTB, 5
+  
+    ; Como flagst esta en 0, entra en option0 hasta que se apacha el boton
+option0:    ; Modo0
+    bcf	    PORTB, 5	    ; Se apagan todas las leds
     bcf	    PORTB, 6
     bcf	    PORTB, 7
-    bcf	    STATUS, 2
-    movlw   1
-    movwf   countsel	    
+    bcf	    STATUS, 2	    ; Se limpia la bandera del status
+    movlw   1	    
+    movwf   countsel	    ; Se revisa si la variable es 1
     movf    stage, w	    
     subwf   countsel, w
-    btfss   STATUS, 2	    
+    btfss   STATUS, 2	    ; Cuando sea uno, se activa el status
     goto    $+4
-    bsf	    PORTB, 5
-    bsf	    flagst, 0
-    bsf	    dispsele, 0
+    bsf	    PORTB, 5	    ; Se activa la led para el siguiente estado
+    bsf	    flagst, 0	    ; Se activa la bandera de estado
+    bsf	    dispsele, 0	    ; Se activa la bandera de seleccion de division
     return
-option01:
+option01:   ; Modo1
     bcf	    STATUS, 2
     movlw   2
-    movwf   countsel
+    movwf   countsel	    ; Se verifica que la variable sea 2
     movf    stage, w
     subwf   countsel, w
-    btfss   STATUS, 2
+    btfss   STATUS, 2	    ; Cuando es 2 se activa el status
     goto    $+7
     bcf	    PORTB, 5
-    bsf	    PORTB, 6
+    bsf	    PORTB, 6	    ; Se apaga la led anterior y se prende la siguiente
     bcf	    flagst, 0
-    bsf	    flagst, 1
+    bsf	    flagst, 1	    ; Cambio de bnderas
     bcf	    dispsele, 0
     bsf	    dispsele, 1
     return
-option02:
+option02:   ; Modo2
     bcf	    STATUS, 2
     movlw   3
     movwf   countsel
@@ -731,7 +732,7 @@ option02:
     bcf	    dispsele, 1
     bsf	    dispsele, 2
     return
-option03:
+option03:   ; Modo3
     bcf	    STATUS, 2
     movlw   4
     movwf   countsel
@@ -747,36 +748,36 @@ option03:
     bcf	    dispsele, 2
     bsf	    dispsele, 3
     return
-back:
-    clrf    control01
-    clrf    control02
-    bcf	    PORTB, 7
-    clrf    flagst
-    clrf    stage
+back:	    ; Modo de reincio
+    clrf    control01	    ; Se limpian las variables del display para 
+    clrf    control02	    ; que estos esten apgados en el modo0
+    bcf	    PORTB, 7	    ; Se apaga la ultima led
+    clrf    flagst	    ; Se limpian las banderas
+    clrf    stage	    ; Se limpia la variable de estado
     clrf    dispsele
     return//</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="Incremento Seleccion">
 up:
-    incf    sem
-    bcf     STATUS, 2
-    movlw   21
-    subwf   sem, w
+    incf    sem		; Se incrementa una variable
+    bcf     STATUS, 2	; Se limpia status
+    movlw   21		
+    subwf   sem, w	; Se verifica que no sea mayor a 21
     btfss   STATUS, 2
     goto    $+3
-    movlw   10
+    movlw   10		; Si es mayor a 20, se le pone automaticamente 10
     movwf   sem 
     return//</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="Decremento Seleccion">
 down:
-    decf    sem
+    decf    sem		; Variable a decrementar
     bcf	    STATUS, 2
     movlw   9
-    subwf   sem, w
+    subwf   sem, w	; Se verifica que no sea menor a 10
     btfss   STATUS, 2
     goto    $+3
-    movlw   20
+    movlw   20		; Si llega a ser menor de 10, se le pone 20
     movwf   sem
     return  //</editor-fold>
       
@@ -792,19 +793,19 @@ timers:
     btfsc   flagsem, 2
     goto    clear
     
-sem01:
-    bcf	    STATUS, 2
-    movf    tiempo01, w
-    movwf   timer1
-    movf    count01, w
-    subwf   timer1, 1
-    btfss   STATUS, 2
-    goto    $+4
-    bsf	    flagsem, 0
+sem01:	    ; Timer1
+    bcf	    STATUS, 2	    ; Se limpia el status
+    movf    tiempo01, w	    ; Se mueve el tiempo a w
+    movwf   timer1	    ; W se mueve a la variable que se muestra
+    movf    count01, w	    ; Se mueve el contador a w
+    subwf   timer1, 1	    ; Se le va restando a la variable del tiempo
+    btfss   STATUS, 2	    ; Se espera hasta que sea 0
+    goto    $+4		    ; Suce una vez status no se prenda
+    bsf	    flagsem, 0	    ; Prende bandera de sem02
     movlw   0
-    movwf   count01
+    movwf   count01	    ; Se reinicia el contador del timer1
     return
-sem02: 
+sem02:	    ; Timer2
     bcf	    STATUS, 2
     movf    tiempo02, w
     movwf   timer2
@@ -817,7 +818,7 @@ sem02:
     movlw   0
     movwf   count01
     return
-sem03:
+sem03:	    ; Timer3
     bcf	    STATUS, 2
     movf    tiempo03, w
     movwf   timer3
@@ -828,15 +829,15 @@ sem03:
     bcf	    flagsem, 1
     bsf	    flagsem, 2
     return
-clear:
-    clrf    count01
-    clrf    flagsem
-    bcf	    TMR1IF
+clear:	    ; Reinicio de timers
+    clrf    count01	; Se limpia el contador del timer1
+    clrf    flagsem	; Se limpian las banderas
+    bcf	    TMR1IF	; Se limpia el overflow del timer1
     return//</editor-fold>
     
 //<editor-fold defaultstate="collapsed" desc="Configuracion Semaforos">
 semaforos:
-    
+	; Se crea un modo para cada luz del semaforo
     btfsc   colorflag, 0
     goto    sema02
     
@@ -864,7 +865,7 @@ semaforos:
     btfsc   flagreset, 0
     goto    reseteo
     
-sema01:
+sema01:	    ; Verde full
     bcf	    STATUS, 2
     bcf	    PORTA, 0	; Rojo s1
     bcf	    PORTA, 1	; Amarillo s1
@@ -876,20 +877,20 @@ sema01:
     bcf	    PORTA, 7	; Amarillo s3
     bcf	    PORTB, 4	; Verde s3
     
-    movf    tiempo01, w
-    movwf   verdec
-    movlw   6
+    movf    tiempo01, w	    ; Muevo tiempo a w
+    movwf   verdec	    ; muevo w a la variable del verde full
+    movlw   6		    
+    subwf   verdec, 1	    ; Le resto al verde full los 6 fijos
+    movf    verdec, w	    ; muevo lo restante de la resta a otra variable
+    movwf   resta	    
+    movf    count01, w	    ; Con el timer uno voy decrementndo verdec
     subwf   verdec, 1
-    movf    verdec, w
-    movwf   resta
-    movf    count01, w
-    subwf   verdec, 1
-    btfss   STATUS, 2
-    goto    $+3
+    btfss   STATUS, 2	    ; Cuando da 0, se activa la bandera status
+    goto    $+3		    ; Con ese salto logro pasarme al siguiente color
     bcf	    PORTA, 2
     bsf	    colorflag, 0
     return
-sema02:  
+sema02:	    ; Verde titilante  
     bcf	    STATUS, 2
     bsf	    PORTA, 2
     delay_small
@@ -904,7 +905,7 @@ sema02:
     bcf	    colorflag, 0
     bsf	    colorflag, 1
     return
-sema03:
+sema03:	    ; Amarillo
     bcf	    STATUS, 2
     bsf	    PORTA, 1
     movlw   6
@@ -918,7 +919,7 @@ sema03:
     bsf	    colorflag, 2
     bcf	    PORTA, 1
     return
-sema04:
+sema04:	    ; Verde 
     bcf	    STATUS, 2
     bcf	    PORTA, 3
     bsf	    PORTA, 0
@@ -937,7 +938,7 @@ sema04:
     bcf	    colorflag, 2
     bsf	    colorflag, 3    
     return
-sema05:
+sema05:	    ; Verde titilantes
     bcf	    STATUS, 2
     bsf	    PORTA, 5
     delay_small
@@ -952,7 +953,7 @@ sema05:
     bcf	    colorflag, 3
     bsf	    colorflag, 4
     return
-sema06:
+sema06:	    ; Amarillo
     bcf	    STATUS, 2
     bsf	    PORTA, 4
     movlw   6
@@ -965,8 +966,8 @@ sema06:
     bcf	    colorflag, 4
     bsf	    colorflag, 5
     bcf	    PORTA, 4
-    return
-sema07:
+    return  
+sema07:	    ; Verde full
     bcf	    STATUS, 2
     bcf	    PORTA, 6
     bsf	    PORTA, 3
@@ -985,7 +986,7 @@ sema07:
     bcf	    colorflag, 5
     bsf	    colorflag, 6    
     return    
-sema08:
+sema08:	    ; verde titilante
     bcf	    STATUS, 2
     bsf	    PORTB, 4
     delay_small
@@ -1000,7 +1001,7 @@ sema08:
     bcf	    colorflag, 6
     bsf	    colorflag, 7
     return   
-sema09:
+sema09:	    ; Amarillo
     bcf	    STATUS, 2
     bsf	    PORTA, 7
     movlw   6
@@ -1015,7 +1016,7 @@ sema09:
     bcf	    PORTA, 7
     bsf	    PORTA, 6
     return
-reseteo:
+reseteo:    ; Reseteo de los semaforos
     clrf    verdec
     clrf    verdet
     clrf    amarillo
@@ -1034,7 +1035,7 @@ delay_small:
     return//</editor-fold>
 
 //<editor-fold defaultstate="collapsed" desc="Reseteo completo">
-supeR:
+supeR:	    ; Limpio las banderas para que se reinicie todo
     call    back
     clrf    flagsem
     clrf    colorflag
@@ -1049,10 +1050,10 @@ supeR:
 //<editor-fold defaultstate="collapsed" desc="Cargar valores en los displays">
 confirmar0:
     movlw   5
-    movwf   fix
-    bsf	    reinicio, 0
-    call    supeR
-    movf    preptim01, w
+    movwf   fix		; Arreglo para el semaforo
+    bsf	    reinicio, 0	; Se utiliza esto para que los displas se detengan
+    call    supeR	; Se llama al reseteo completo
+    movf    preptim01, w    ; Se mueven las variables a los timers
     movwf   tiempo01
     movf    preptim02, w
     movwf   tiempo02
