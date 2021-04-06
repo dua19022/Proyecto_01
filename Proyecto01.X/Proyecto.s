@@ -137,6 +137,10 @@ fix:
 	DS 1
 accept:
 	DS 1
+carga01:
+	DS 1
+carga02:
+	DS 
 	//</editor-fold>
 	
 GLOBAL sem
